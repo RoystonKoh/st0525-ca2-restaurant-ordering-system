@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Member {
+  memberId        Int             @id @default(autoincrement()) @map("member_id")
+  username        String          @unique @db.VarChar(50)
+  email           String          @unique @db.VarChar(255)
+  passwordHash    String          @map("password_hash") @db.VarChar(255)
+  firstName       String          @map("first_name") @db.VarChar(100)
+  lastName        String          @map("last_name") @db.VarChar(100)
+  createdAt       DateTime?       @default(now()) @map("created_at") @db.Timestamp(6)
+  roles           MemberRole[]
+  carts           Cart[]
+  saleOrders      SaleOrder[]
+
+  @@map("member")
+}
+
+model MemberRole {
+  memberId Int    @map("member_id")
+  role     String @db.VarChar(20)
+  member   Member @relation(fields: [memberId], references: [memberId], onDelete: Cascade)
+
+  @@id([memberId, role])
+  @@map("member_role")
+}
+
+model Product {
+  productId      Int             @id @default(autoincrement()) @map("product_id")
+  name           String          @db.VarChar(255)
+  description    String?
+  price          Decimal         @db.Decimal(10, 2)
+  category       String?         @db.VarChar(100)
+  isAvailable    Boolean         @default(true) @map("is_available")
+  createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamp(6)
+  cartItems      CartItem[]
+  saleOrderItems SaleOrderItem[]
+
+  @@index([isAvailable, category], map: "idx_product_available_category")
+  @@map("product")
+}
+
+model Cart {
+  cartId       Int        @id @default(autoincrement()) @map("cart_id")
+  memberId     Int        @map("member_id")
+  status       String     @default("ACTIVE") @db.VarChar(20)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+  member       Member     @relation(fields: [memberId], references: [memberId], onDelete: Cascade)
+  items        CartItem[]
+
+  @@index([memberId, status], map: "idx_cart_member_status")
+  @@map("cart")
+}
+
+model CartItem {
+  cartItemId Int      @id @default(autoincrement()) @map("cart_item_id")
+  cartId     Int      @map("cart_id")
+  productId  Int      @map("product_id")
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  cart       Cart     @relation(fields: [cartId], references: [cartId], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [productId])
+
+  @@unique([cartId, productId], map: "cart_item_cart_id_product_id_key")
+  @@index([productId], map: "idx_cart_item_product_id")
+  @@map("cart_item")
+}
+
+model SaleOrder {
+  orderId     Int             @id @default(autoincrement()) @map("order_id")
+  memberId    Int             @map("member_id")
+  orderDate   DateTime        @default(now()) @map("order_date") @db.Timestamp(6)
+  totalAmount Decimal         @map("total_amount") @db.Decimal(10, 2)
+  status      String          @default("PACKING") @db.VarChar(20)
+  member      Member          @relation(fields: [memberId], references: [memberId])
+  items       SaleOrderItem[]
+
+  @@index([memberId, orderDate(sort: Desc)], map: "idx_sale_order_member_order_date")
+  @@index([status, orderDate(sort: Desc)], map: "idx_sale_order_status_order_date")
+  @@map("sale_order")
+}
+
+model SaleOrderItem {
+  orderItemId Int       @id @default(autoincrement()) @map("order_item_id")
+  orderId     Int       @map("order_id")
+  productId   Int       @map("product_id")
+  quantity    Int
+  unitPrice   Decimal   @map("unit_price") @db.Decimal(10, 2)
+  subtotal    Decimal   @db.Decimal(10, 2)
+  order       SaleOrder @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [productId])
+
+  @@index([productId, orderId], map: "idx_sale_order_item_product_order")
+  @@map("sale_order_item")
+}

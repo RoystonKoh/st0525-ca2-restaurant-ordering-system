@@ -1,0 +1,57 @@
+erDiagram
+    MEMBER ||--o{ CART : owns
+    CART ||--|{ CART_ITEM : contains
+    PRODUCT ||--o{ CART_ITEM : appears_in
+    MEMBER ||--o{ SALE_ORDER : places
+    SALE_ORDER ||--|{ SALE_ORDER_ITEM : contains
+    PRODUCT ||--o{ SALE_ORDER_ITEM : ordered_as
+
+    MEMBER {
+        int member_id PK
+        varchar username
+        varchar email
+        varchar first_name
+        varchar last_name
+    }
+
+    PRODUCT {
+        int product_id PK
+        varchar name
+        decimal price
+        varchar category
+        boolean is_available
+    }
+
+    CART {
+        int cart_id PK
+        int member_id FK
+        varchar status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CART_ITEM {
+        int cart_item_id PK
+        int cart_id FK
+        int product_id FK
+        int quantity
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SALE_ORDER {
+        int order_id PK
+        int member_id FK
+        timestamp order_date
+        decimal total_amount
+        varchar status
+    }
+
+    SALE_ORDER_ITEM {
+        int order_item_id PK
+        int order_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+        decimal subtotal
+    }

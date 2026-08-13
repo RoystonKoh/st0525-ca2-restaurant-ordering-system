@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Feedback - Member View</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .feedback-box { border: 4px solid #000; padding: 1.5rem 2rem; background: #fff; }
+    .star-rating { color: #ffc107; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/member/products">Restaurant Ordering System</a>
+      <div class="navbar-nav ms-auto align-items-center">
+        <a class="nav-link text-light me-3" href="/member/products">Products</a>
+        <span class="navbar-text me-3">Welcome, Member</span>
+        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0">Retrieve All My Feedback</h4>
+      <a href="/member/products" class="btn btn-outline-secondary btn-sm">Back to Products</a>
+    </div>
+
+    <div id="message" class="alert" style="display: none;"></div>
+    <div id="feedback-list"></div>
+  </main>
+
+  <div class="modal fade" id="editFeedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Update Feedback</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="edit-feedback-id">
+          <label for="edit-rating" class="form-label">Rating</label>
+          <select class="form-select mb-3" id="edit-rating">
+            <option value="5">5 - Excellent</option>
+            <option value="4">4 - Good</option>
+            <option value="3">3 - Average</option>
+            <option value="2">2 - Poor</option>
+            <option value="1">1 - Terrible</option>
+          </select>
+          <label for="edit-comments" class="form-label">Comments</label>
+          <textarea class="form-control" id="edit-comments" rows="3"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="save-feedback-btn">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let feedbackCache = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadMyFeedback();
+      document.getElementById('feedback-list').addEventListener('click', handleClick);
+      document.getElementById('save-feedback-btn').addEventListener('click', updateFeedback);
+    });
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function showMessage(message, type = 'info') {
+      const box = document.getElementById('message');
+      box.className = `alert alert-${type}`;
+      box.textContent = message;
+      box.style.display = 'block';
+    }
+
+    async function loadMyFeedback() {
+      const response = await fetch('/feedback/mine');
+      const data = await response.json();
+      const list = document.getElementById('feedback-list');
+
+      if (!data.success) {
+        showMessage(data.message || 'Failed to load feedback.', 'danger');
+        return;
+      }
+
+      feedbackCache = data.feedback || [];
+
+      if (feedbackCache.length === 0) {
+        list.innerHTML = '<div class="alert alert-info">You have not submitted any feedback yet.</div>';
+        return;
+      }
+
+      list.innerHTML = feedbackCache.map((item) => `
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="row g-3 align-items-start">
+              <div class="col-lg-7">
+                <div class="feedback-box">
+                  <p><strong>Feedback ID:</strong> ${item.feedback_id}</p>
+                  <p><strong>Product Name:</strong> ${escapeHtml(item.product_name)}</p>
+                  <p><strong>Rating:</strong> <span class="star-rating">${'&#9733;'.repeat(item.rating)}${'&#9734;'.repeat(5 - item.rating)}</span></p>
+                  <p><strong>Comments:</strong> ${item.comments ? escapeHtml(item.comments) : '<span class="text-muted">No comment provided.</span>'}</p>
+                  <p class="mb-0"><strong>Last Updated:</strong> ${new Date(item.updated_at).toLocaleString()}</p>
+                </div>
+              </div>
+              <div class="col-lg-5 d-flex gap-2 justify-content-lg-end">
+                <a class="btn btn-outline-primary btn-sm" href="/member/product-detail?id=${item.product_id}">View Product</a>
+                <button class="btn btn-outline-secondary btn-sm" data-action="edit-feedback" data-id="${item.feedback_id}">Update</button>
+                <button class="btn btn-outline-danger btn-sm" data-action="delete-feedback" data-id="${item.feedback_id}">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function handleClick(event) {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+
+      if (button.dataset.action === 'edit-feedback') {
+        const item = feedbackCache.find((feedback) => String(feedback.feedback_id) === String(button.dataset.id));
+        if (!item) return;
+        document.getElementById('edit-feedback-id').value = item.feedback_id;
+        document.getElementById('edit-rating').value = item.rating;
+        document.getElementById('edit-comments').value = item.comments || '';
+        new bootstrap.Modal(document.getElementById('editFeedbackModal')).show();
+      }
+
+      if (button.dataset.action === 'delete-feedback') {
+        await deleteFeedback(button.dataset.id);
+      }
+    }
+
+    async function updateFeedback() {
+      const feedbackId = document.getElementById('edit-feedback-id').value;
+      const response = await fetch(`/feedback/${feedbackId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: document.getElementById('edit-rating').value,
+          comments: document.getElementById('edit-comments').value
+        })
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        alert(data.message);
+        return;
+      }
+
+      bootstrap.Modal.getInstance(document.getElementById('editFeedbackModal')).hide();
+      await loadMyFeedback();
+    }
+
+    async function deleteFeedback(feedbackId) {
+      if (!confirm('Delete this feedback?')) return;
+
+      const response = await fetch(`/feedback/${feedbackId}`, { method: 'DELETE' });
+      const data = await response.json();
+
+      if (!data.success) {
+        alert(data.message);
+        return;
+      }
+
+      await loadMyFeedback();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Report render check completed on 14 August 2026.
+
+Verified findings:
+1. The generated Word report renders successfully as a 10-page document.
+2. The title page, rubric sections, and embedded ERD image render clearly and are readable.
+3. The ERD image appears on page 2 with readable entity names, primary/foreign-key labels, and relationship labels.
+4. The report still contains intentional placeholders for student identity, GitHub repository URLs, self-ratings, and screenshot insertion points.
+5. No fabricated screenshots or benchmark timings were inserted because a live PostgreSQL restore environment was not available in the sandbox.
+6. The report is structurally ready for final personalisation and evidence insertion after local database restore.
