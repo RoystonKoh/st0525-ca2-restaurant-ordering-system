@@ -1,0 +1,74 @@
+                                                           QUERY PLAN                                                           
+--------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..26571.12 rows=4091 width=73) (actual time=0.239..146.206 rows=1 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on manufacturer  (cost=0.00..25162.03 rows=1705 width=73) (actual time=93.676..141.411 rows=0 loops=3)
+         Filter: (lower((support_email)::text) = 'joany.wolf@hotmail.com'::text)
+         Rows Removed by Filter: 272748
+ Planning Time: 0.346 ms
+ Execution Time: 146.236 ms
+(8 rows)
+
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..26987.03 rows=8250 width=64) (actual time=0.257..50.481 rows=8122 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on manufacturer  (cost=0.00..25162.03 rows=3438 width=64) (actual time=0.062..45.298 rows=2707 loops=3)
+         Filter: (is_operational AND ((origin)::text = 'Singapore'::text) AND ((product_category)::text = 'Electronics'::text))
+         Rows Removed by Filter: 270041
+ Planning Time: 0.108 ms
+ Execution Time: 50.823 ms
+(8 rows)
+
+                                                                       QUERY PLAN                                                                       
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..27636.36 rows=6220 width=31) (actual time=0.145..47.562 rows=6106 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on manufacturer  (cost=0.00..26014.36 rows=2592 width=31) (actual time=0.135..42.909 rows=2035 loops=3)
+         Filter: ((founded_since >= '2015-01-01'::date) AND (founded_since <= '2020-12-31'::date) AND ((product_category)::text = 'Electronics'::text))
+         Rows Removed by Filter: 270713
+ Planning Time: 0.093 ms
+ Execution Time: 47.819 ms
+(8 rows)
+
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..26715.73 rows=5537 width=34) (actual time=0.176..43.644 rows=5610 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on manufacturer  (cost=0.00..25162.03 rows=2307 width=34) (actual time=0.062..38.761 rows=1870 loops=3)
+         Filter: ((employee_count >= 2900) AND ((origin)::text = 'Singapore'::text))
+         Rows Removed by Filter: 270878
+ Planning Time: 0.070 ms
+ Execution Time: 43.875 ms
+(8 rows)
+
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..26571.12 rows=4091 width=34) (actual time=0.218..75.826 rows=8047 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on manufacturer  (cost=0.00..25162.03 rows=1705 width=34) (actual time=0.062..71.035 rows=2682 loops=3)
+         Filter: (EXTRACT(year FROM founded_since) = '2020'::numeric)
+         Rows Removed by Filter: 270066
+ Planning Time: 0.065 ms
+ Execution Time: 76.168 ms
+(8 rows)
+
+                                                                  QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=25352.60..25352.61 rows=1 width=8) (actual time=47.852..50.369 rows=1 loops=1)
+   ->  Gather  (cost=25352.38..25352.59 rows=2 width=8) (actual time=47.779..50.363 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=24352.38..24352.39 rows=1 width=8) (actual time=45.875..45.876 rows=1 loops=3)
+               ->  Parallel Seq Scan on manufacturer  (cost=0.00..24309.69 rows=17079 width=4) (actual time=0.019..44.952 rows=13561 loops=3)
+                     Filter: (is_operational AND ((product_category)::text = 'Electronics'::text))
+                     Rows Removed by Filter: 259187
+ Planning Time: 0.079 ms
+ Execution Time: 50.403 ms
+(10 rows)
+

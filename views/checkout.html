@@ -1,41 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout | Restaurant Ordering System</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"><link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-      <a class="navbar-brand" href="/member/products">Restaurant Ordering System</a>
-      <div class="navbar-nav ms-auto align-items-center">
-        <a class="nav-link text-light me-3" href="/member/products">Products</a>
-        <a class="nav-link text-light me-3 position-relative" href="/member/cart">Cart <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span></a>
-        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-      </div>
-    </div>
-  </nav>
-
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark"><div class="container">
+    <a class="navbar-brand" href="/cart/create">Restaurant Ordering System</a>
+    <div class="navbar-nav ms-auto align-items-center"><a class="nav-link text-light me-3" href="/cart/create">Add Items</a><a class="nav-link text-light me-3 position-relative" href="/cart/retrieve/all">Cart <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span></a><a href="/logout" class="btn btn-outline-light btn-sm">Logout</a></div>
+  </div></nav>
   <main class="container mt-4 mb-5">
     <div id="page-message" class="alert d-none" role="alert"></div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <h1 class="h3 mb-1">Checkout</h1>
-        <p class="text-muted mb-0">Confirm your order. The database validates all items and creates the order atomically.</p>
-      </div>
-      <a href="/member/cart" class="btn btn-outline-secondary">Back to Cart</a>
-    </div>
+    <div class="d-flex justify-content-between align-items-center mb-3"><div><h1 class="h3 mb-1">Checkout</h1><p class="text-muted mb-0">Eligible product discounts stack automatically. Delivery fee is selected from the active delivery tier.</p></div><a href="/cart/retrieve/all" class="btn btn-outline-secondary">Back to Cart</a></div>
     <div id="checkout-content"></div>
   </main>
-
   <script src="/js/cart-ui.js"></script>
   <script>
     let checkoutReady = false;
-
     document.addEventListener('DOMContentLoaded', loadCheckout);
+    const money = (value) => `$${Number(value || 0).toFixed(2)}`;
 
     async function loadCheckout() {
       try {
@@ -43,67 +27,59 @@
         const cart = data.cart;
         checkoutReady = data.can_checkout;
         await refreshCartBadge();
-
         if (!cart.items.length) {
-          document.getElementById('checkout-content').innerHTML = `
-            <div class="card"><div class="card-body text-center py-5">
-              <h2 class="h5">There is nothing to check out</h2>
-              <p class="text-muted">Your cart is empty.</p>
-              <a href="/member/products" class="btn btn-primary">Browse Products</a>
-            </div></div>`;
+          document.getElementById('checkout-content').innerHTML = '<div class="card"><div class="card-body text-center py-5"><h2 class="h5">There is nothing to check out</h2><p class="text-muted">Your cart is empty.</p><a href="/cart/create" class="btn btn-primary">Add Items</a></div></div>';
           return;
         }
+        renderCheckout(cart, data.message);
+      } catch (error) { showPageMessage(error.message, 'danger'); }
+    }
 
-        document.getElementById('checkout-content').innerHTML = `
-          <div class="row g-4">
-            <section class="col-lg-8"><div class="card"><div class="card-body">
-              <h2 class="h5">Order Items</h2>
-              <ul class="list-group list-group-flush">${cart.items.map((item) => `
-                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                  <span><strong>${escapeHtml(item.product.name)}</strong><br><span class="small text-muted">Quantity: ${item.quantity} × $${Number(item.product.price).toFixed(2)}</span></span>
-                  <strong>$${Number(item.subtotal).toFixed(2)}</strong>
-                </li>`).join('')}</ul>
-            </div></div></section>
-            <aside class="col-lg-4"><div class="card"><div class="card-body">
-              <h2 class="h5">Payment Summary</h2>
-              <div class="d-flex justify-content-between mb-2"><span>Total items</span><span>${cart.item_count}</span></div>
-              <div class="d-flex justify-content-between h5"><span>Total</span><span>$${Number(cart.total_amount).toFixed(2)}</span></div>
-              <p class="small text-muted">This assessment implementation records an order only; no external payment data is collected.</p>
-              <button id="confirm-checkout" class="btn btn-success w-100" ${checkoutReady ? '' : 'disabled'}>Confirm and Place Order</button>
-            </div></div></aside>
-          </div>`;
-
-        if (!checkoutReady) {
-          showPageMessage('Checkout is unavailable because one or more items are no longer available. Return to your cart to correct it.', 'warning');
-        } else {
-          document.getElementById('confirm-checkout').addEventListener('click', placeOrder);
-        }
-      } catch (error) {
-        showPageMessage(error.message, 'danger');
-      }
+    function renderCheckout(cart, message) {
+      const summary = cart.summary;
+      const appliedRules = summary.applied_rules.length ? summary.applied_rules.map((rule) => `<li class="list-group-item px-0 small"><strong>${escapeHtml(rule.name)}</strong><br><span class="text-muted">${escapeHtml(rule.description)}</span><span class="float-end text-success">−${money(rule.amount)}</span></li>`).join('') : '<li class="list-group-item px-0 small text-muted">No active discount rule is eligible.</li>';
+      document.getElementById('checkout-content').innerHTML = `<div class="row g-4">
+        <section class="col-lg-7"><div class="card"><div class="card-body"><h2 class="h5">Cart Items to Process</h2><ul class="list-group list-group-flush">${cart.items.map((item) => `<li class="list-group-item px-0 d-flex justify-content-between align-items-center ${item.product.is_available ? '' : 'text-warning'}"><span><strong>${escapeHtml(item.product.name)}</strong><br><span class="small text-muted">Quantity: ${item.quantity} × ${money(item.product.price)}${item.product.is_available ? '' : ' — unavailable; remains in cart'}</span></span><strong>${money(item.subtotal)}</strong></li>`).join('')}</ul></div></div></section>
+        <aside class="col-lg-5"><div class="card"><div class="card-body"><h2 class="h5">Checkout Summary</h2>
+          <div class="d-flex justify-content-between mb-2"><span>Orderable items subtotal</span><span>${money(summary.items_subtotal)}</span></div>
+          <ul class="list-group list-group-flush mb-2">${appliedRules}</ul>
+          <div class="d-flex justify-content-between text-success mb-2"><span>Automatic product/cart discounts</span><strong>−${money(summary.total_product_discount_amount)}</strong></div>
+          ${summary.selected_voucher ? `<div class="small border rounded p-2 mb-2"><strong>Selected voucher: ${escapeHtml(summary.selected_voucher.code)}</strong><br>${escapeHtml(summary.selected_voucher.message)}</div>` : ''}
+          ${summary.voucher_discount_amount > 0 ? `<div class="d-flex justify-content-between text-success mb-2"><span>Voucher item saving</span><strong>−${money(summary.voucher_discount_amount)}</strong></div>` : ''}
+          <div class="d-flex justify-content-between mb-2"><span>Items after all discounts</span><span>${money(summary.items_total_after_voucher)}</span></div>
+          <section class="border-top pt-2 mt-2"><h3 class="h6">Delivery / Service Pricing</h3>
+            <div class="small text-muted mb-1">${summary.delivery_rule ? `${escapeHtml(summary.delivery_rule.name)} — tier fee ${money(summary.delivery_tier_fee)}` : 'No delivery fee for an all-unavailable cart.'}</div>
+            <div class="d-flex justify-content-between small mb-1"><span>Standard delivery price</span><span>${money(summary.standard_delivery_fee)}</span></div>
+            <div class="d-flex justify-content-between small mb-1"><span>Automatic delivery-tier saving</span><span class="text-success">−${money(summary.delivery_discount_amount)}</span></div>
+            ${summary.voucher_delivery_saving > 0 ? `<div class="d-flex justify-content-between small mb-1"><span>Voucher delivery saving</span><span class="text-success">−${money(summary.voucher_delivery_saving)}</span></div>` : ''}
+            <div class="d-flex justify-content-between fw-bold mb-2"><span>Final delivery/service fee</span><span>${money(summary.delivery_fee)}</span></div>
+          </section>
+          <hr><div class="d-flex justify-content-between h5"><span>Final total</span><span>${money(summary.final_total)}</span></div>
+          <div class="alert alert-${summary.unavailable_item_count > 0 ? 'warning' : 'info'} small">${escapeHtml(message)}</div>
+          <p class="small text-muted">Payment is not part of this assessment. Place Order calls the database procedure to process available items; unavailable items are kept in the cart.</p>
+          <button id="confirm-checkout" class="btn btn-success w-100" ${checkoutReady ? '' : 'disabled'}>Place Order</button>
+        </div></div></aside>
+      </div>`;
+      if (checkoutReady) document.getElementById('confirm-checkout').addEventListener('click', placeOrder);
     }
 
     async function placeOrder() {
       if (!checkoutReady) return;
       const button = document.getElementById('confirm-checkout');
-      button.disabled = true;
-      button.textContent = 'Placing Order…';
-
+      button.disabled = true; button.textContent = 'Processing Cart…';
       try {
         const data = await getJson('/checkout', { method: 'POST' });
         await refreshCartBadge();
-        document.getElementById('checkout-content').innerHTML = `
-          <div class="card border-success"><div class="card-body text-center py-5">
-            <h2 class="h4 text-success">Order Placed Successfully</h2>
-            <p>Your order <strong>#${data.order.order_id}</strong> has ${data.order.item_count} item(s) and a total of <strong>$${Number(data.order.total_amount).toFixed(2)}</strong>.</p>
-            <p class="text-muted">Status: ${escapeHtml(data.order.status)}. An administrator may update its status from the dashboard.</p>
-            <a href="/member/products" class="btn btn-primary">Continue Shopping</a>
-          </div></div>`;
+        if (!data.order) {
+          showPageMessage(data.message, 'warning');
+          checkoutReady = false;
+          return loadCheckout();
+        }
+        const pricing = data.order.pricing;
+        document.getElementById('checkout-content').innerHTML = `<div class="card border-success"><div class="card-body text-center py-5"><h2 class="h4 text-success">Order Processing Complete</h2><p>${escapeHtml(data.message)}</p><p>Order <strong>#${data.order.order_id}</strong> contains ${data.order.item_count} processed item line(s).</p><div class="mx-auto text-start" style="max-width:420px"><div class="d-flex justify-content-between"><span>Items subtotal</span><span>${money(pricing.items_subtotal)}</span></div><div class="d-flex justify-content-between text-success"><span>Automatic discounts</span><span>−${money(Number(pricing.product_discount_amount) + Number(pricing.cart_discount_amount))}</span></div>${Number(pricing.voucher_discount_amount) > 0 ? `<div class="d-flex justify-content-between text-success"><span>Voucher item saving (${escapeHtml(pricing.voucher_code || 'voucher')})</span><span>−${money(pricing.voucher_discount_amount)}</span></div>` : ''}<div class="d-flex justify-content-between"><span>Delivery fee</span><span>${money(pricing.delivery_fee)}</span></div>${Number(pricing.voucher_delivery_saving) > 0 ? `<div class="d-flex justify-content-between text-success"><span>Voucher delivery saving</span><span>−${money(pricing.voucher_delivery_saving)}</span></div>` : ''}<hr><div class="d-flex justify-content-between h5"><span>Final total</span><strong>${money(pricing.final_total)}</strong></div></div>${data.skipped_item_count > 0 ? `<div class="alert alert-warning mt-3">${data.skipped_item_count} unavailable item(s) remain in your cart.</div>` : ''}<p class="text-muted">Status: ${escapeHtml(data.order.status)}.</p><a href="/cart/retrieve/all" class="btn btn-primary">View Remaining Cart</a></div></div>`;
         showPageMessage(data.message, 'success');
       } catch (error) {
-        button.disabled = false;
-        button.textContent = 'Confirm and Place Order';
-        showPageMessage(error.message, 'danger');
+        button.disabled = false; button.textContent = 'Place Order'; showPageMessage(error.message, 'danger');
       }
     }
   </script>

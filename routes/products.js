@@ -1,10 +1,10 @@
 // routes/products.js
 const express = require('express');
 const db = require('../config/database');
-const { ensureAuthenticated } = require('../middleware/auth');
+const { ensureAuthenticated, ensureCustomer } = require('../middleware/auth');
 const router = express.Router();
 
-router.use(ensureAuthenticated);
+router.use(ensureAuthenticated, ensureCustomer);
 
 // GET /products - retrieve all products (member view)
 router.get('/', async (req, res) => {
@@ -12,8 +12,7 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT product_id, name, description, price, category, is_available, created_at
       FROM product
-      WHERE is_available = TRUE
-      ORDER BY created_at DESC
+      ORDER BY is_available DESC, created_at DESC
     `;
 
     const result = await db.query(query);

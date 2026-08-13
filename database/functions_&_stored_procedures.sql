@@ -353,3 +353,69 @@ BEGIN
     USING p_start_date, p_end_date, p_category;
 END;
 $$;
+
+
+-- ST0525 Database Systems CA2: required per-item cart processing procedure.
+-- Discount and delivery calculation deliberately remain outside this procedure, as required by the CA2 brief.
+DROP PROCEDURE IF EXISTS public.place_orders(INTEGER);
+DROP PROCEDURE IF EXISTS public.place_orders(INTEGER, INTEGER, INTEGER, INTEGER);
+
+CREATE OR REPLACE PROCEDURE public.place_orders(
+    IN p_member_id INTEGER,
+    OUT p_order_id INTEGER,
+    OUT p_processed_item_count INTEGER,
+    OUT p_skipped_item_count INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_cart_id INTEGER;
+    v_item RECORD;
+    v_running_amount NUMERIC(10, 2) := 0;
+BEGIN
+    p_order_id := NULL;
+    p_processed_item_count := 0;
+    p_skipped_item_count := 0;
+
+    SELECT cart_id INTO v_cart_id
+    FROM public.cart
+    WHERE member_id = p_member_id AND status = 'ACTIVE'
+    ORDER BY cart_id DESC
+    LIMIT 1
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'No active cart was found for this member.';
+    END IF;
+
+    FOR v_item IN
+        SELECT ci.cart_item_id, ci.product_id, ci.quantity, p.price, p.is_available
+        FROM public.cart_item ci
+        JOIN public.product p ON p.product_id = ci.product_id
+        WHERE ci.cart_id = v_cart_id
+        ORDER BY ci.cart_item_id
+        FOR UPDATE OF ci, p
+    LOOP
+        IF v_item.is_available THEN
+            IF p_order_id IS NULL THEN
+                INSERT INTO public.sale_order (member_id, order_date, total_amount, status)
+                VALUES (p_member_id, CURRENT_TIMESTAMP, 0, 'PACKING')
+                RETURNING order_id INTO p_order_id;
+            END IF;
+
+            INSERT INTO public.sale_order_item (order_id, product_id, quantity, unit_price, subtotal)
+            VALUES (p_order_id, v_item.product_id, v_item.quantity, v_item.price, ROUND(v_item.quantity * v_item.price, 2));
+
+            v_running_amount := v_running_amount + ROUND(v_item.quantity * v_item.price, 2);
+            DELETE FROM public.cart_item WHERE cart_item_id = v_item.cart_item_id;
+            p_processed_item_count := p_processed_item_count + 1;
+        ELSE
+            p_skipped_item_count := p_skipped_item_count + 1;
+        END IF;
+    END LOOP;
+
+    IF p_order_id IS NOT NULL THEN
+        UPDATE public.sale_order SET total_amount = v_running_amount WHERE order_id = p_order_id;
+    END IF;
+END;
+$$;

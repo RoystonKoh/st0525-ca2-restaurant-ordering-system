@@ -1,9 +1,9 @@
-Report render check completed on 14 August 2026.
+Final report rendering check completed on 14 August 2026.
 
 Verified findings:
-1. The generated Word report renders successfully as a 10-page document.
-2. The title page, rubric sections, and embedded ERD image render clearly and are readable.
-3. The ERD image appears on page 2 with readable entity names, primary/foreign-key labels, and relationship labels.
-4. The report still contains intentional placeholders for student identity, GitHub repository URLs, self-ratings, and screenshot insertion points.
-5. No fabricated screenshots or benchmark timings were inserted because a live PostgreSQL restore environment was not available in the sandbox.
-6. The report is structurally ready for final personalisation and evidence insertion after local database restore.
+1. `docs/CA2_Individual_Report.docx` renders successfully as a 10-page Word document.
+2. The title page, all major CA2 rubric sections, evidence tables, and the embedded final ERD render clearly.
+3. The ERD on page 2 shows the final Cart, CartItem, PricingRule, OrderPricing, Member, Product, SaleOrder, and SaleOrderItem design.
+4. The report content reflects the final official CA2 implementation: the original five restaurant table definitions are unchanged; pricing is stored in new entities; stackable discounts, delivery tiers, administrator rule management, and the partial-processing `place_orders` procedure are documented.
+5. Intentional placeholders remain for student identity, GitHub URL, self-ratings, completion checks, and student-local screenshots.
+6. Manufacturer execution times in the report are supported by the supplied 818,244-row backup evidence files; student-local pgAdmin screenshots must still be inserted if required by the lecturer.

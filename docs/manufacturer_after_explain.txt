@@ -1,0 +1,65 @@
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on manufacturer  (cost=120.13..10239.77 rows=4091 width=73) (actual time=0.049..0.049 rows=1 loops=1)
+   Recheck Cond: (lower((support_email)::text) = 'joany.wolf@hotmail.com'::text)
+   Heap Blocks: exact=1
+   ->  Bitmap Index Scan on manufacturer_support_email_lower_idx  (cost=0.00..119.11 rows=4091 width=0) (actual time=0.035..0.035 rows=1 loops=1)
+         Index Cond: (lower((support_email)::text) = 'joany.wolf@hotmail.com'::text)
+ Planning Time: 0.626 ms
+ Execution Time: 0.080 ms
+(7 rows)
+
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on manufacturer  (cost=137.61..15639.60 rows=8250 width=64) (actual time=1.894..44.293 rows=8122 loops=1)
+   Recheck Cond: (((origin)::text = 'Singapore'::text) AND ((product_category)::text = 'Electronics'::text) AND is_operational)
+   Heap Blocks: exact=6719
+   ->  Bitmap Index Scan on manufacturer_origin_category_operational_idx  (cost=0.00..135.55 rows=8250 width=0) (actual time=1.023..1.023 rows=8122 loops=1)
+         Index Cond: (((origin)::text = 'Singapore'::text) AND ((product_category)::text = 'Electronics'::text) AND (is_operational = true))
+ Planning Time: 0.105 ms
+ Execution Time: 44.842 ms
+(7 rows)
+
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on manufacturer  (cost=147.73..13423.90 rows=6220 width=31) (actual time=1.773..26.053 rows=6106 loops=1)
+   Recheck Cond: (((product_category)::text = 'Electronics'::text) AND (founded_since >= '2015-01-01'::date) AND (founded_since <= '2020-12-31'::date))
+   Heap Blocks: exact=5283
+   ->  Bitmap Index Scan on manufacturer_category_founded_since_idx  (cost=0.00..146.18 rows=6220 width=0) (actual time=1.086..1.087 rows=6106 loops=1)
+         Index Cond: (((product_category)::text = 'Electronics'::text) AND (founded_since >= '2015-01-01'::date) AND (founded_since <= '2020-12-31'::date))
+ Planning Time: 0.129 ms
+ Execution Time: 26.441 ms
+(7 rows)
+
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on manufacturer  (cost=77.18..12432.33 rows=5537 width=34) (actual time=1.398..24.533 rows=5610 loops=1)
+   Recheck Cond: (((origin)::text = 'Singapore'::text) AND (employee_count >= 2900))
+   Heap Blocks: exact=4867
+   ->  Bitmap Index Scan on manufacturer_origin_employee_count_idx  (cost=0.00..75.80 rows=5537 width=0) (actual time=0.743..0.744 rows=5610 loops=1)
+         Index Cond: (((origin)::text = 'Singapore'::text) AND (employee_count >= 2900))
+ Planning Time: 0.111 ms
+ Execution Time: 24.875 ms
+(7 rows)
+
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on manufacturer  (cost=80.13..10199.77 rows=4091 width=34) (actual time=2.202..21.857 rows=8047 loops=1)
+   Recheck Cond: (EXTRACT(year FROM founded_since) = '2020'::numeric)
+   Heap Blocks: exact=6667
+   ->  Bitmap Index Scan on manufacturer_founded_year_idx  (cost=0.00..79.11 rows=4091 width=0) (actual time=1.341..1.341 rows=8047 loops=1)
+         Index Cond: (EXTRACT(year FROM founded_since) = '2020'::numeric)
+ Planning Time: 0.106 ms
+ Execution Time: 22.274 ms
+(7 rows)
+
+                                                                                    QUERY PLAN                                                                                     
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1226.17..1226.18 rows=1 width=8) (actual time=5.603..5.603 rows=1 loops=1)
+   ->  Index Only Scan using manufacturer_category_operational_employee_idx on manufacturer  (cost=0.42..1123.70 rows=40989 width=4) (actual time=0.045..3.735 rows=40682 loops=1)
+         Index Cond: ((product_category = 'Electronics'::text) AND (is_operational = true))
+         Heap Fetches: 0
+ Planning Time: 0.098 ms
+ Execution Time: 5.632 ms
+(6 rows)
+

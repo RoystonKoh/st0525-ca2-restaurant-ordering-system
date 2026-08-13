@@ -1,34 +1,33 @@
-# ST0525 CA2 — Complete Setup, Evidence, and Submission Guide
+# ST0525 CA2 — Simple Setup, Test, Interview, and Submission Guide
 
-This guide is written for the completed project folder. Follow the steps in order. Do not skip the database setup steps: the application and report evidence depend on the restored PostgreSQL database.
+Follow this guide **in order**. Do not skip database steps. This final project uses **two separate databases**: `restaurant_db` for the Node/Prisma application and `manufacturer` only for Deliverable #005 indexing.
 
-## 1. Prepare your project copy and GitHub repository
+> **Important:** Do **not** run `npx prisma db pull`. The supplied final `prisma/schema.prisma` is already mapped to the required database tables. Running `db pull` can overwrite the Cart, PricingRule, and OrderPricing model mappings.
 
-1. Extract the supplied `CA2_READY_TO_SUBMIT.zip` file into a normal project folder on your computer.
-2. Create a new GitHub repository named, for example, `st0525-ca2-restaurant-ordering-system`.
-3. Open a terminal inside the extracted project folder and run the following commands.
+## Part A — Put the project on your computer
+
+1. Download and extract the final ZIP into a normal folder, such as `Documents\ST0525_CA2`.
+2. Open the extracted folder in VS Code.
+3. Confirm that the folder contains `package.json`, `prisma`, `database`, `views`, `controllers`, `docs`, and this guide.
+4. Create your GitHub repository now, but do not upload `.env`.
 
 ```bash
 git init
 git add .
-git commit -m "Complete CA2 cart, checkout, transaction and indexing implementation"
+git commit -m "ST0525 CA2 final implementation"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
 git push -u origin main
 ```
 
-4. Copy the repository URL. You will use it in the individual report. Do **not** upload your `.env` file because it contains local credentials.
+## Part B — Restore the restaurant database
 
-## 2. Restore the main restaurant database
-
-The supplied `restaurant_db_restore.sql` is a PostgreSQL custom-format backup despite the `.sql` filename. Restore it through **pgAdmin 4**, because the archive version may be newer than your locally installed command-line restore program.
-
-1. Open pgAdmin 4 and connect to your PostgreSQL server.
-2. Create a database named `restaurant_db` if your lecturer has not given you another required name.
-3. Right-click `restaurant_db` → **Restore**.
-4. Select `database/restaurant_db_restore.sql` (or the original supplied backup if it is outside the project folder).
-5. Use the **Custom or tar** restore format if pgAdmin asks. Run the restore.
-6. Open Query Tool and verify the baseline tables:
+1. Open **pgAdmin 4** and connect to your PostgreSQL server.
+2. Create a database named `restaurant_db` unless your lecturer gave you a different required name.
+3. Right-click the new database → **Restore**.
+4. Select `restaurant_db_restore.sql` from the submitted project folder/original supplied files.
+5. Choose **Custom or tar** format if pgAdmin asks, then restore.
+6. Right-click `restaurant_db` → **Query Tool** and run this check.
 
 ```sql
 SELECT tablename
@@ -37,31 +36,76 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 ```
 
-You should be able to see tables including `member`, `product`, `sale_order`, and `sale_order_item`.
+You should see at least `member`, `member_role`, `product`, `sale_order`, and `sale_order_item`.
 
-## 3. Restore the separate manufacturer database
+## Part C — Add the CA2 database entities and procedure
 
-The setup guide requires a **separate** manufacturer database.
+Stay connected to **restaurant_db** in Query Tool. Run the files in this exact order.
 
-1. In pgAdmin, create a new database named `manufacturer`.
-2. Right-click `manufacturer` → **Restore**.
-3. Select the originally supplied `manufacturer_restore.sql` backup.
-4. After restoration, run:
+1. Open and run:
+
+```text
+database/ca2_cart_checkout_indexes.sql
+```
+
+This creates only the new `cart` and `cart_item` tables and their constraints.
+
+2. Open and run:
+
+```text
+database/ca2_official_pricing_and_transactions.sql
+```
+
+This creates only the new `pricing_rule`, `voucher`, `cart_voucher`, and `order_pricing` tables, seeds automatic rules plus three optional customer vouchers, and creates the required `place_orders` procedure.
+
+3. Open and run:
+
+```text
+database/functions_&_stored_procedures.sql
+```
+
+This keeps the stored-procedure export in sync with the project. If you already ran this earlier for CA1, it is safe to run again.
+
+4. Run this verification query. Take a screenshot of the successful output.
+
+```sql
+SELECT tablename
+FROM pg_tables
+WHERE schemaname = 'public'
+  AND tablename IN ('cart', 'cart_item', 'pricing_rule', 'voucher', 'cart_voucher', 'order_pricing')
+ORDER BY tablename;
+
+SELECT routine_name, routine_type
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_name = 'place_orders';
+
+SELECT name, rule_scope, rule_type, minimum_quantity,
+       minimum_cart_value, maximum_cart_value,
+       discount_percent, delivery_fee, is_active
+FROM public.pricing_rule
+ORDER BY pricing_rule_id;
+```
+
+> The `NOTICE ... does not exist, skipping` messages for an old prototype procedure are **not errors**. The important result is that `place_orders` exists and the new tables/rules appear.
+
+## Part D — Restore the separate manufacturer database
+
+1. In pgAdmin, create another database called `manufacturer`.
+2. Restore the provided `manufacturer_restore.sql` into **manufacturer**, not `restaurant_db`.
+3. In the `manufacturer` Query Tool, run:
 
 ```sql
 SELECT COUNT(*) AS manufacturer_rows FROM public.manufacturer;
 SELECT * FROM public.manufacturer LIMIT 10;
 ```
 
-5. Capture one screenshot showing that `manufacturer` is a separate database, contains one `manufacturer` table, and has the correct restored row count. Keep this screenshot for the corresponding CA2 deliverable if your lecturer asks for it.
+4. Take one screenshot proving that `manufacturer` is a separate database and contains the `manufacturer` table.
 
-> The application must continue to point at `restaurant_db`. Do not change the runtime `DB_NAME` to `manufacturer`.
+## Part E — Configure and start the application
 
-## 4. Configure the environment
-
-1. In the project root, copy `.env.example` to `.env`.
-2. Replace the placeholder password and secret with your local values.
-3. Ensure that both the Node.js configuration and Prisma target the **same restaurant database**.
+1. In the project root, copy `.env.example` and rename the copy to `.env`.
+2. Replace the password and secret using your own local PostgreSQL details.
 
 ```env
 DB_HOST=localhost
@@ -70,138 +114,170 @@ DB_NAME=restaurant_db
 DB_USER=postgres
 DB_PASSWORD=YOUR_POSTGRES_PASSWORD
 DATABASE_URL=postgresql://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/restaurant_db?schema=public
-SESSION_SECRET=use_a_long_random_value_here
+SESSION_SECRET=put_a_long_random_string_here
 PORT=3000
 NODE_ENV=development
 ```
 
-If your password contains special characters, URL-encode it in `DATABASE_URL`. The `DB_PASSWORD` line should retain the normal password.
-
-## 5. Install dependencies and integrate Prisma
-
-Run the commands below from the project root.
+3. Open the VS Code terminal in the project root and run:
 
 ```bash
 npm install
 npx prisma validate
-npx prisma db pull
 npx prisma generate
-```
-
-The supplied `prisma/schema.prisma` already maps the existing restaurant entities and the new `Cart`/`CartItem` models. Run `npx prisma db pull` after the main database is restored, then inspect the schema carefully. If Prisma modifies a type based on your restored database, keep the change only if it reflects the database correctly.
-
-## 6. Apply the CA2 database migration
-
-1. In pgAdmin Query Tool, connected to `restaurant_db`, open and run:
-
-```text
-database/ca2_cart_checkout_indexes.sql
-```
-
-2. Verify the new tables and stored procedure:
-
-```sql
-SELECT tablename
-FROM pg_tables
-WHERE schemaname = 'public'
-  AND tablename IN ('cart', 'cart_item');
-
-SELECT routine_name, routine_type
-FROM information_schema.routines
-WHERE routine_schema = 'public'
-  AND routine_name = 'place_order_from_cart';
-
-SELECT indexname
-FROM pg_indexes
-WHERE schemaname = 'public'
-  AND indexname LIKE 'idx_%'
-ORDER BY indexname;
-```
-
-3. Record a screenshot of the successful SQL execution and the result grid. This is useful evidence for database design, transaction management, and indexing.
-
-## 7. Start and test the application
-
-Start the project:
-
-```bash
 npm start
 ```
 
-Open `http://localhost:3000/login` in your browser. Use the seeded account details shown on the project login page, or register a new member account.
+4. Open `http://localhost:3000/login`.
+5. Use the sample customer/admin login details displayed on the login page. If your database has different seeded credentials, use those instead.
 
-Perform this exact demonstration flow:
+## Part F — Customer demonstration: cart CRUD
 
-1. Log in as a `USER`.
-2. Open **Products**.
-3. Add two different available products to the cart, with one item quantity above 1.
-4. Open **Cart**. Increase one quantity, decrease another quantity, and remove an item if you need a removal screenshot.
-5. Return to Products and add the removed item again so the cart has at least two items.
-6. Open **Checkout**. Confirm the summary contains all products, quantities, and totals.
-7. Select **Confirm and Place Order**.
-8. Capture the success confirmation showing the order number and total.
-9. Log in as an `ADMIN` and open the dashboard. Confirm the new order appears and change its status if the existing application requires this for feedback testing.
+Use a **customer** account.
 
-## 8. Capture evidence screenshots for the individual report
+1. Go to **Add Items** or open `http://localhost:3000/cart/create`.
+2. Add an available product.
+3. Open the cart at `http://localhost:3000/cart/retrieve/all`.
+4. Use `+` to increase its quantity, then `−` to decrease it.
+5. Add a different item and then use **Delete** on one item.
+6. Add items again so your cart contains the products needed for the next tests.
 
-Use your own screenshots. Insert them into `docs/CA2_Individual_Report.docx` at the marked places.
+Take screenshots of:
 
-| Criterion | Minimum screenshots to insert |
+| Screenshot | What the marker should see |
 | --- | --- |
-| Database design / ORM | Lucidchart-exported ERD and successful migration/result-grid screenshot. |
-| Cart management | Successful add-to-cart/cart count, populated Cart page, one invalid/unavailable case. |
-| Checkout | Checkout review page, successful order confirmation, one disabled/error business-rule case. |
-| Transaction management | Success, empty-cart error, unavailable-product error, verification query showing no partial order. |
-| Indexing | Six `EXPLAIN (ANALYZE, BUFFERS)` outputs—one for each proposed query. |
+| Cart add | A successful add message and cart badge/count. |
+| Retrieve all | At least two cart items, subtotals, quantity controls, and server-calculated summary. |
+| Update/delete | A changed quantity or deleted line. |
 
-The report template specifically says the ERD must be diagrammed in Lucidchart. Use `docs/erd_ca2.png` and `docs/erd_ca2.mmd` as the accurate source, reproduce the same structure in Lucidchart, export it as PNG, and replace the ERD image in the Word report with the Lucidchart-exported image.
+## Part G — Find the required product and unavailable item
 
-## 9. Test transaction management
+In `restaurant_db` Query Tool, run:
 
-1. Open `database/checkout_test_cases.sql` in pgAdmin Query Tool.
-2. Replace the member and product IDs at the top of each test block with values found in your restored database.
-3. Run the success case. Capture the notice and verification queries.
-4. Run the empty-cart failure case. Capture the expected error notice and the before/after order-count notice.
-5. Run the unavailable-product case. Capture the expected error notice.
-6. Explain in your report that the procedure locks the active cart and product rows before validating and inserting the order. This prevents a partially completed order if a validation rule fails.
+```sql
+SELECT product_id, name, price, is_available
+FROM public.product
+ORDER BY is_available DESC, product_id;
 
-## 10. Test the six indexes with real plans
-
-1. Ensure the application has enough realistic data. Place a few additional test orders if necessary.
-2. Open `database/index_benchmark.sql` in pgAdmin.
-3. Replace the sample member IDs, product IDs, and category string with values that exist in your database.
-4. Run the index list query and capture the result.
-5. Run each of Q1–Q6. Capture the `EXPLAIN (ANALYZE, BUFFERS)` plan.
-6. In the report, state what PostgreSQL actually selected: for example, `Index Scan`, `Bitmap Index Scan`, or `Seq Scan`; state the actual execution time and explain the outcome.
-
-> Do not force an index scan or invent a performance improvement. On a small restored dataset, PostgreSQL may correctly choose a sequential scan because scanning a small table can cost less than index access. Your explanation of the real plan is more credible than a false performance claim.
-
-## 11. Finalise the individual report
-
-1. Open `docs/CA2_Individual_Report.docx`.
-2. Replace all `[[...]]` fields with your name, student ID, class, GitHub URL, evidence-link base, confirmed self-ratings, and checklist values.
-3. Replace each placeholder GitHub link using your repository URL. For example:
-
-```text
-https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/blob/main/prisma/schema.prisma
+SELECT pr.name AS rule_name, pr.minimum_quantity, pr.discount_percent,
+       p.product_id, p.name AS target_product
+FROM public.pricing_rule pr
+LEFT JOIN public.product p ON p.product_id = pr.product_id
+WHERE pr.rule_type = 'PRODUCT_QUANTITY_PERCENT'
+ORDER BY pr.minimum_quantity;
 ```
 
-4. Insert the required screenshots at the marked places.
-5. Replace the generated ERD with your Lucidchart export.
-6. Click every hyperlink in the Word report. Broken links can result in a major mark deduction according to the supplied template.
-7. Save the completed document using your required naming convention, for example: `P1234567_CA2_Individual_Report.docx`.
+The first available product chosen during setup is the target product for the seeded **Buy 3 at 10%** and **Buy 5 at 15%** rules. Find one product where `is_available` is `false`; this is your unavailable demonstration item.
 
-## 12. Final submission checklist
+If your restored data does not contain an unavailable product, use a test product you are allowed to mark unavailable:
 
-| Item | What to submit |
+```sql
+UPDATE public.product
+SET is_available = FALSE
+WHERE product_id = YOUR_TEST_PRODUCT_ID;
+```
+
+This changes test data only; it does **not** alter the original table structure.
+
+## Part H — Customer demonstration: automatic discounts, vouchers, and delivery
+
+The required CA2 product-quantity, cart-value, and delivery-tier rules apply automatically. The Cart page also has an optional customer voucher dropdown. A shopper may select **one** reusable active voucher; this is additional to the automatic rules, not a replacement for them. The Cart and Checkout summaries show every component separately.
+
+> **Pricing order to explain in the interview:** product quantity discount → cart-value discount → delivery-tier selection → optional `PERCENT`, `FIXED`, or `FREE_DELIVERY` voucher. A voucher does not alter the automatic delivery tier.
+
+### Test 1: Product quantity discount, delivery tier, and `WELCOME10`
+
+1. Add **3 units** of the target available product and add one unavailable product.
+2. Open Cart. In **Optional Voucher**, select `WELCOME10`.
+3. Show the 10% automatic product rule, the `WELCOME10` item saving, and the **Delivery / Service Pricing** lines: standard delivery price, automatic tier saving, and final delivery fee.
+4. Open Checkout and confirm the selected voucher and the same breakdown are visible.
+5. Press **Place Order**. The successful order contains only available items; the unavailable item remains in Cart.
+
+### Test 2: All items unavailable
+
+1. In Cart, remove any selected voucher if needed. After Test 1, the unavailable item should remain.
+2. Go to Checkout and press **Place Order**.
+3. Show the message that no order is created and the unavailable item remains.
+
+### Test 3: Stacked automatic discounts and `SAVE5`
+
+1. Keep the unavailable item in the cart if you want to demonstrate partial processing again.
+2. Add **5 units** of the target available product and enough available items until the **orderable subtotal** is at least `$100`.
+3. In Cart, select `SAVE5` from the voucher dropdown.
+4. Open Checkout. Show the Buy 5 product discount, Spend `$100` cart-value discount, `SAVE5` item saving, free-delivery tier (`$0.00`), and final total.
+5. Press **Place Order** and show that available lines are processed while the unavailable line remains.
+
+### Test 4: `FREEDELIVERY`
+
+1. Add **3 units** of the target available product, which normally reaches the `$5.00` delivery tier after the 10% automatic product discount.
+2. Select `FREEDELIVERY` in Cart.
+3. Show the **standard delivery price**, **automatic delivery-tier saving**, **voucher delivery saving**, and **final delivery/service fee `$0.00`**.
+4. Open Checkout and place the order. The confirmation records the free-delivery voucher saving separately from automatic discounts.
+
+Take screenshots of the Cart dropdown and delivery breakdown, the Checkout summary, and the post-order confirmation for your report evidence.
+## Part I — Administrator demonstration
+
+1. Log out and log in as an **ADMIN**.
+2. Open `http://localhost:3000/dashboard`.
+3. Scroll to **Promotion and Delivery Rules**.
+4. Show the existing Buy 3/Buy 5 product rules, cart-value rule, and delivery-tier rules.
+5. Create a new rule. A good interview example is:
+
+| Field | Value |
 | --- | --- |
-| Application source | Your GitHub repository URL and/or source ZIP as instructed. |
-| Main SQL work | `database/ca2_cart_checkout_indexes.sql`, `database/checkout_test_cases.sql`, and `database/index_benchmark.sql`. |
-| Prisma work | `prisma/schema.prisma`, `prisma.config.ts`, and `config/prisma.js`. |
-| Individual report | Finalised Word report with screenshots, Lucidchart ERD, working GitHub links, and personal details. |
-| Manufacturer evidence | Screenshot verifying the separate `manufacturer` database/table/row count, if required by the deliverable. |
+| Rule Name | `Buy 2 Test Product at 8 percent` |
+| Rule Type | Product quantity percentage |
+| Product | Any available test product |
+| Minimum Quantity | `2` |
+| Discount Percent | `8` |
+| Priority | `5` |
 
-## 13. Commands to run before final upload
+6. Show the new rule in the table, then deactivate it. Explain that this is data-driven and a manager can add, edit, activate, or deactivate policy rows without changing checkout code.
+
+## Part J — Run the two transaction scenarios in pgAdmin
+
+1. Open `tests/official_ca2_transaction_checks.sql`.
+2. This script is designed for the project’s controlled test data. For your own restored database, use the application screenshots as your main evidence, or adjust the product/member IDs carefully.
+3. The expected behaviour is:
+
+| Scenario | Expected result |
+| --- | --- |
+| Available + unavailable | A sale order and line exist for the available item; its cart item is deleted; unavailable item remains. |
+| All unavailable | No new sale order/line exists; all unavailable items remain in cart. |
+
+4. Use Query Tool to verify the latest data:
+
+```sql
+SELECT * FROM public.sale_order ORDER BY order_id DESC LIMIT 10;
+SELECT * FROM public.sale_order_item ORDER BY order_item_id DESC LIMIT 20;
+SELECT ci.*, p.name, p.is_available
+FROM public.cart_item ci
+JOIN public.product p ON p.product_id = ci.product_id
+ORDER BY ci.cart_id, ci.cart_item_id;
+```
+
+## Part K — Manufacturer Deliverable #005: six real index tests
+
+In the separate **manufacturer** database:
+
+1. Open `database/manufacturer_benchmark.sql` and run it **before** adding indexes. Save or screenshot all six `EXPLAIN ANALYSE` outputs.
+2. Open and run `database/manufacturer_indexing.sql`.
+3. Run `database/manufacturer_benchmark.sql` again.
+4. For every query, capture the before/after plan or write down the actual plan node and execution time.
+5. Use `docs/MANUFACTURER_INDEX_RESULTS.md` as your explanation model. The completed project’s evidence used the supplied backup, but your local plan/time can vary.
+
+## Part L — Finish the individual report
+
+1. Open `docs/CA2_Individual_Report.docx`.
+2. Replace every `[[...]]` field with your own name, student ID, class, GitHub URL, and completion checks.
+3. Replace `[[GITHUB_BASE]]` in links with your GitHub blob URL.
+4. Insert your own screenshots from Parts C, F, H, I, J, and K.
+5. If your template requires Lucidchart specifically, reproduce `docs/erd_ca2.mmd` / `docs/erd_ca2.png` in Lucidchart, export it, and insert that export.
+6. Save as your lecturer’s requested naming format, for example `P1234567_CA2_Individual_Report.docx`.
+
+## Part M — Final commands and upload checklist
+
+Before uploading:
 
 ```bash
 npm test
@@ -213,4 +289,9 @@ git commit -m "Final CA2 submission"
 git push
 ```
 
-The project-level validation report is in `VALIDATION_EVIDENCE.md`. It records what was automatically validated and explicitly distinguishes this from the live PostgreSQL evidence that you must capture on your own restored database.
+| Submit / verify | What you should provide |
+| --- | --- |
+| Deliverables #002–#004 | The final source ZIP/GitHub repository as your learning site specifies, plus your individual report if requested in that slot. |
+| Deliverable #005 | Manufacturer index SQL, benchmark SQL, six before/after plan screenshots, and the report indexing section. |
+| Individual report | Final Word report with your own details, screenshots, Lucidchart ERD if required, and working GitHub links. |
+| Do **not** submit | `.env`, `node_modules`, PostgreSQL password, or unrelated lecture files. |

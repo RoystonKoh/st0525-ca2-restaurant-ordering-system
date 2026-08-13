@@ -1,15 +1,20 @@
 erDiagram
     MEMBER ||--o{ CART : owns
     CART ||--|{ CART_ITEM : contains
-    PRODUCT ||--o{ CART_ITEM : appears_in
+    PRODUCT ||--o{ CART_ITEM : selected_in
+    CART ||--o| CART_VOUCHER : selects
+    VOUCHER ||--o{ CART_VOUCHER : selected_for
     MEMBER ||--o{ SALE_ORDER : places
     SALE_ORDER ||--|{ SALE_ORDER_ITEM : contains
     PRODUCT ||--o{ SALE_ORDER_ITEM : ordered_as
+    PRODUCT o|--o{ PRICING_RULE : targeted_by
+    SALE_ORDER ||--o| ORDER_PRICING : records
 
     MEMBER {
         int member_id PK
-        varchar username
-        varchar email
+        varchar username UK
+        varchar email UK
+        varchar password_hash
         varchar first_name
         varchar last_name
     }
@@ -17,7 +22,7 @@ erDiagram
     PRODUCT {
         int product_id PK
         varchar name
-        decimal price
+        numeric price
         varchar category
         boolean is_available
     }
@@ -39,11 +44,44 @@ erDiagram
         timestamp updated_at
     }
 
+    PRICING_RULE {
+        int pricing_rule_id PK
+        varchar name UK
+        varchar rule_scope
+        varchar rule_type
+        int product_id FK
+        int minimum_quantity
+        numeric minimum_cart_value
+        numeric maximum_cart_value
+        numeric discount_percent
+        numeric delivery_fee
+        int priority
+        boolean is_active
+    }
+
+    VOUCHER {
+        int voucher_id PK
+        varchar code UK
+        varchar name
+        varchar voucher_type
+        numeric voucher_value
+        numeric minimum_cart_value
+        boolean is_active
+        text description
+    }
+
+    CART_VOUCHER {
+        int cart_id PK, FK
+        int voucher_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
     SALE_ORDER {
         int order_id PK
         int member_id FK
         timestamp order_date
-        decimal total_amount
+        numeric total_amount
         varchar status
     }
 
@@ -52,6 +90,20 @@ erDiagram
         int order_id FK
         int product_id FK
         int quantity
-        decimal unit_price
-        decimal subtotal
+        numeric unit_price
+        numeric subtotal
+    }
+
+    ORDER_PRICING {
+        int order_id PK, FK
+        numeric items_subtotal
+        numeric product_discount_amount
+        numeric cart_discount_amount
+        numeric delivery_fee
+        numeric delivery_discount_amount
+        varchar voucher_code
+        numeric voucher_discount_amount
+        numeric voucher_delivery_saving
+        numeric final_total
+        string pricing_snapshot_data
     }

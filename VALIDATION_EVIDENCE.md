@@ -1,31 +1,44 @@
-# CA2 Validation Evidence
+# CA2 Intensive Validation Evidence
 
-## Automated validation completed
+## Validation result
 
-The completed project was checked on **14 August 2026** using the following commands:
+The final CA2 source was validated against clean, isolated PostgreSQL databases. The restaurant database tests used a controlled copy of the required schema and representative product/member data. The manufacturer tests used the supplied manufacturer backup restored with **818,244 rows**.
+
+| Validation layer | Test | Result |
+| --- | --- | --- |
+| Automated structure tests | `npm test` | **10 / 10 passed**. |
+| Prisma | `npx prisma validate` and `npx prisma generate` | Passed. |
+| JavaScript | `node --check` over configuration, controllers, models, routes, middleware, browser JS, services, test code, and `server.js` | Passed. |
+| SQL migration | Cart migration and official pricing/transaction migration applied to a fresh database | Passed. |
+| Transaction Scenario 1 | Available quantity-tier product plus unavailable product; call `place_orders` | Passed: one available line was ordered, removed from cart, and the unavailable line remained. |
+| Transaction Scenario 2 | All remaining items unavailable; call `place_orders` | Passed: no additional sale order was created and the item remained in the cart. |
+| Customer cart CRUD | Add, retrieve, update quantity, and delete an individual cart item through the running API | Passed. |
+| Product quantity pricing | Buy 3 targeted products | Passed: 10% product rule and `$5.00` automatic delivery tier calculated. |
+| Optional `PERCENT` voucher | Select `WELCOME10` after Buy 3 automatic rule | Passed: `$5.40` voucher item saving, `$5.00` tier fee unchanged, final total `$53.60`; voucher code and saving persisted in `order_pricing`. |
+| Stacked pricing + `FIXED` voucher | Buy 5 targeted products plus a `$30` item, then select `SAVE5` | Passed: 15% product tier + 5% cart-value discount + `$5.00` voucher saving + free-delivery tier; final total `$104.25`. |
+| Optional `FREE_DELIVERY` voucher | Select `FREEDELIVERY` for the `$5.00` automatic delivery tier | Passed: automatic delivery tier remained `$5.00`, voucher delivery saving was `$5.00`, final delivery fee was `$0.00`, and the saving persisted. |
+| Checkout API | Available/unavailable partial order and all-unavailable no-order response, with voucher pricing snapshot | Passed. |
+| Access control | Customer attempted to read admin pricing rules | Passed: HTTP `403`. |
+| Administrator rules | Admin listed rules, created a delivery tier, and deactivated it | Passed. |
+| Manufacturer indexes | Six before/after `EXPLAIN ANALYSE` comparisons | Passed; all six selected post-index plans used an index and execution time decreased. |
+
+## Commands used in the final validation
 
 ```bash
 npm test
 npx prisma validate
 npx prisma generate
-find config controllers models routes middleware public/js tests -type f -name '*.js' -print0 | xargs -0 -n1 node --check
-node --check server.js
+node --check <each revised JavaScript file>
+psql -f tests/sql_integration_base.sql
+psql -f database/ca2_cart_checkout_indexes.sql
+psql -f database/ca2_official_pricing_and_transactions.sql
+psql -f tests/official_ca2_transaction_checks.sql
+BASE_URL=http://127.0.0.1:3103 node tests/http_official_ca2_integration.js
+psql -f database/manufacturer_benchmark.sql   # before indexes
+psql -f database/manufacturer_indexing.sql
+psql -f database/manufacturer_benchmark.sql   # after indexes
 ```
 
-All six structural checks passed. The checks confirm that the CA2 migration creates `cart` and `cart_item`, contains the guarded `place_order_from_cart` procedure, defines the six selected indexes, maps the cart entities in Prisma, protects cart/checkout endpoints, supplies the two member pages, and loads the Prisma-backed runtime modules.
+## What to reproduce in the student environment
 
-The Express HTTP smoke test also passed in test mode. `GET /login` returned HTTP `200`, while an unauthenticated request to `GET /member/cart` returned HTTP `302` and redirected to `/login`. This demonstrates that the cart page is access-controlled before a session is established.
-
-## Live database evidence to capture
-
-The sandbox did not contain a running PostgreSQL server or a PostgreSQL 17 restore utility compatible with the supplied custom-format backups. Therefore, no database performance numbers or UI screenshots are fabricated in this package. After restoring the supplied database locally, capture the evidence below using the exact scripts included in the project.
-
-| Criterion | File to run/use | Capture required |
-| --- | --- | --- |
-| Cart management | Application pages: Products and Cart | One successful add/update/remove sequence and one validation/error state. |
-| Checkout | Application page: Checkout | The review screen plus the success confirmation containing order number and total. |
-| Transaction management | `database/checkout_test_cases.sql` | Success case, empty-cart rejection, unavailable-product rejection, and verification queries proving no partial order was inserted. |
-| Indexing | `database/index_benchmark.sql` | The six `EXPLAIN (ANALYZE, BUFFERS)` plans, one per proposed query. Show the relevant index name and real execution statistics. |
-| ERD/ORM model | `docs/erd_ca2.mmd` and `docs/erd_ca2.png` | Export the ERD from Lucidchart after reproducing it there, as required by the template. |
-
-> Do not report made-up milliseconds. Use the actual execution-time and plan output shown by PostgreSQL on the restored assignment database.
+Run the two restaurant SQL files in the stated order, replace `prisma/schema.prisma` with the final version, run `npx prisma generate`, and use the numbered setup guide. Then run the customer and administrator demonstrations in `INTERVIEW_DEMONSTRATION_RUNBOOK.md`. The report must contain the student’s own screenshots from their restored databases and local application session.
