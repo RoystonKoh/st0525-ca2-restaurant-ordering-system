@@ -1,7 +1,7 @@
 Final report rendering check completed on 14 August 2026.
 
 Verified findings:
-1. `docs/CA2_Individual_Report.docx` renders successfully as a 10-page Word document.
+1. `docs/CA2 Individual Report` renders successfully as a 10-page Word document.
 2. The title page, all major CA2 rubric sections, evidence tables, and the embedded final ERD render clearly.
 3. The ERD on page 2 shows the final Cart, CartItem, PricingRule, OrderPricing, Member, Product, SaleOrder, and SaleOrderItem design.
 4. The report content reflects the final official CA2 implementation: the original five restaurant table definitions are unchanged; pricing is stored in new entities; stackable discounts, delivery tiers, administrator rule management, and the partial-processing `place_orders` procedure are documented.
